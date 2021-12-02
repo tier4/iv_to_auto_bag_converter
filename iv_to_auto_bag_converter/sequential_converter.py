@@ -15,6 +15,7 @@
 import argparse
 import glob
 import os
+import shutil
 from pathlib import Path
 
 from iv_to_auto_bag_converter.converter import AutoBagConverter
@@ -52,7 +53,7 @@ def main():
         )
         converter.convert()
         if args.delete:
-            input_bag_dir.rmdir()
+            shutil.rmtree(input_bag_dir.as_posix())
             output_bag_dir.rename(input_bag_dir)
 
 
