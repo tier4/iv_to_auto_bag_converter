@@ -66,9 +66,10 @@ class AutoBagConverter:
         ) as qos_yaml:
             qos_setting = yaml.load(qos_yaml, Loader=yaml.SafeLoader)
         for topic_name in autoware_auto_msgs_list:
-            qos_setting[autoware_auto_msgs_list[topic_name][0]] = qos_setting.pop(
-                topic_name
-            )
+            if topic_name in qos_setting:
+                qos_setting[autoware_auto_msgs_list[topic_name][0]] = qos_setting.pop(
+                    topic_name
+                )
         with open(
             os.path.join(self.__output_bag_dir, self.__qos_override_file_name), "w"
         ) as override_qos_yaml:
