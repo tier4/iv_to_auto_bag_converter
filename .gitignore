@@ -1,0 +1,4 @@
+log/
+.cspell.json
+.pyc
+__pycache__

@@ -1,0 +1,15 @@
+/vehicle/status/control_mode:
+- /vehicle/status/control_mode
+- autoware_auto_vehicle_msgs/msg/ControlModeReport
+/vehicle/status/shift:
+- /vehicle/status/gear_status
+- autoware_auto_vehicle_msgs/msg/GearReport
+/vehicle/status/steering:
+- /vehicle/status/steering_status
+- autoware_auto_vehicle_msgs/SteeringReport
+/vehicle/status/turn_signal:
+- /vehicle/status/turn_indicators_status
+- autoware_auto_vehicle_msgs/msg/TurnIndicatorsReport
+/vehicle/status/twist:
+- /vehicle/status/velocity_status
+- autoware_auto_vehicle_msgs/msg/VelocityReport

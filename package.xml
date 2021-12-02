@@ -2,10 +2,15 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>iv_to_auto_bag_converter</name>
-  <version>0.0.0</version>
-  <description>TODO: Package description</description>
-  <maintainer email="hayato-m126@users.noreply.github.com">hyt</maintainer>
-  <license>TODO: License declaration</license>
+  <version>0.1.0</version>
+  <description>convert .iv bag to .auto</description>
+  <maintainer email="ryu.yamamoto@tier4.jp">Ryu Yamamoto</maintainer>
+  <maintainer email="hayato-m126@users.noreply.github.com">Hayato Mizushima</maintainer>
+  <license>Apache V2</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>autoware_auto_vehicle_msgs</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
