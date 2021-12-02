@@ -2,6 +2,14 @@
 
 This package converts rosbag2(.db3) file created by Autoware.IV to Autoware.Auto
 
+## Demo
+
+convert one bag
+![conver_one_bag](./convert_one_bag.gif)
+
+convert multi_bags
+![conver_multiple_bags](./convert_multiple_bags.gif)
+
 ## Requirements
 
 - ROS2 galactic
