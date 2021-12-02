@@ -1,0 +1,29 @@
+{
+  "cSpell.languageSettings": [
+    {
+      "languageId": "c,cpp,python",
+      "allowCompoundWords": false
+    }
+  ],
+  "editor.formatOnSave": false,
+  "python.linting.enabled": true,
+  "python.linting.pylintEnabled": false,
+  "python.linting.flake8Enabled": true,
+  "python.formatting.provider": "black",
+  "[python]": {
+    "editor.tabSize": 4,
+    "editor.formatOnType": false,
+    "editor.formatOnPaste": false,
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": true
+    },
+  },
+  "python.autoComplete.extraPaths": [
+    "/opt/ros/galactic/lib/python3.8/site-packages"
+  ],
+  "python.analysis.extraPaths": [
+    "/opt/ros/galactic/lib/python3.8/site-packages"
+  ],
+  "ros.distro": "galactic"
+}
