@@ -29,13 +29,15 @@ class AutoBagConverter:
         self,
         input_bag_dir: Text,
         output_bag_dir: Text,
-        topic_list_file: Text,
         qos_override_file_name: Text,
     ):
         self.__input_bag_dir = input_bag_dir
         self.__output_bag_dir = output_bag_dir
-        self.__topic_list_file = topic_list_file
         self.__qos_override_file_name = qos_override_file_name
+        self.__topic_list_file = os.path.join(
+            get_package_share_directory("iv_to_auto_bag_converter"),
+            "topic_list.yaml",
+        )
 
     def __create_reader(self):
         storage_options = StorageOptions(uri=self.__input_bag_dir, storage_id="sqlite3")
@@ -163,15 +165,10 @@ def main():
         help="file name of qos override",
     )
     args = parser.parse_args()
-    topic_list_path = os.path.join(
-        get_package_share_directory("iv_to_auto_bag_converter"),
-        "topic_list.yaml",
-    )
 
     converter = AutoBagConverter(
         os.path.expandvars(args.input),
         os.path.expandvars(args.output),
-        os.path.expandvars(topic_list_path),
         args.qos_override_file_name,
     )
     converter.convert()

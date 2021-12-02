@@ -18,6 +18,9 @@ setup(
     license="Apache V2",
     tests_require=["pytest"],
     entry_points={
-        "console_scripts": ["convert = " + package_name + ".converter:main"],
+        "console_scripts": [
+            "convert = " + package_name + ".converter:main",
+            "convert_multi = " + package_name + ".sequential_converter:main",
+        ],
     },
 )
