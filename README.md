@@ -43,3 +43,9 @@ ros2 run iv_to_auto_bag_converter $(input_bag_path) $(output_bag_path) [-q $(qos
 # convert multiple bags in the directory
 ros2 run iv_to_auto_bag_converter $(input_bag_path) [-q $(qos_override_file_name) --delete] 
 ```
+
+
+## How to add topic(s) to be converted (for Developer)
+
+1. add .iv topic name, .auto topic name, and .auto data type in config/topic_list.yaml
+2. add conversion logic to __convert_iv_topic function in conveter.py

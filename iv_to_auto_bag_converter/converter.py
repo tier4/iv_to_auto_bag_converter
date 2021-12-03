@@ -14,13 +14,14 @@
 
 import argparse
 import os
-from typing import Text
+from typing import Any, Text, Tuple
 
+import autoware_auto_vehicle_msgs.msg as auto_vehicle_msgs
+import autoware_vehicle_msgs.msg as iv_vehicle_msgs
+import rosbag2_py
 import yaml
 from ament_index_python.packages import get_package_share_directory
-from autoware_auto_vehicle_msgs.msg import *
 from rclpy.serialization import deserialize_message, serialize_message
-from rosbag2_py import *
 from rosidl_runtime_py.utilities import get_message
 
 
@@ -40,22 +41,24 @@ class AutoBagConverter:
         )
 
     def __create_reader(self):
-        storage_options = StorageOptions(uri=self.__input_bag_dir, storage_id="sqlite3")
-        converter_options = ConverterOptions(
+        storage_options = rosbag2_py.StorageOptions(
+            uri=self.__input_bag_dir, storage_id="sqlite3"
+        )
+        converter_options = rosbag2_py.ConverterOptions(
             input_serialization_format="cdr", output_serialization_format="cdr"
         )
-        reader = SequentialReader()
+        reader = rosbag2_py.SequentialReader()
         reader.open(storage_options, converter_options)
         return reader, storage_options, converter_options
 
     def __create_writer(self):
-        storage_options = StorageOptions(
+        storage_options = rosbag2_py.StorageOptions(
             uri=self.__output_bag_dir, storage_id="sqlite3"
         )
-        converter_options = ConverterOptions(
+        converter_options = rosbag2_py.ConverterOptions(
             input_serialization_format="cdr", output_serialization_format="cdr"
         )
-        writer = SequentialWriter()
+        writer = rosbag2_py.SequentialWriter()
         writer.open(storage_options, converter_options)
         return writer, storage_options, converter_options
 
@@ -75,6 +78,38 @@ class AutoBagConverter:
         ) as override_qos_yaml:
             yaml.dump(qos_setting, override_qos_yaml)
 
+    def __convert_iv_topic(
+        self, iv_topic_name: Text, iv_type: Any, autoware_auto_msgs_list
+    ) -> Tuple[Text, Any]:
+        auto_topic_name = iv_topic_name
+        auto_type = iv_type
+
+        if iv_topic_name in autoware_auto_msgs_list:
+            auto_topic_name = autoware_auto_msgs_list[iv_topic_name][0]
+            if iv_topic_name == "/vehicle/status/control_mode":
+                # convert logic
+                auto_data = auto_vehicle_msgs.ControlModeReport()
+                auto_data.mode = iv_type.data
+            elif iv_topic_name == "/vehicle/status/shift":
+                # convert logic
+                auto_data = auto_vehicle_msgs.GearReport()
+                auto_data = iv_type.shift.data
+            elif iv_topic_name == "/vehicle/status/steering":
+                # convert logic
+                auto_data = auto_vehicle_msgs.SteeringReport()
+                auto_data.steering_tire_angle = iv_type.data
+            elif iv_topic_name == "/vehicle/status/turn_signal":
+                # convert logic
+                auto_data = auto_vehicle_msgs.TurnIndicatorsReport()
+                auto_data.report = iv_type.data
+            elif iv_topic_name == "/vehicle/status/twist":
+                auto_data = auto_vehicle_msgs.VelocityReport()
+                auto_data.header.frame_id = "base_link"
+                auto_data.longitudinal_velocity = iv_type.twist.linear.x
+                auto_data.lateral_velocity = iv_type.twist.linear.y
+                auto_data.heading_rate = iv_type.twist.angular.z
+        return auto_topic_name, auto_type
+
     def convert(self):
         # open reader
         reader, _, _ = self.__create_reader()
@@ -88,7 +123,7 @@ class AutoBagConverter:
         for topic_type in reader.get_all_topics_and_types():
             topic_type_list[topic_type.name] = topic_type.type
             if topic_type.name in list(autoware_auto_msgs_list.keys()):
-                topic_type = TopicMetadata(
+                topic_type = rosbag2_py.TopicMetadata(
                     name=autoware_auto_msgs_list[topic_type.name][0],
                     type=autoware_auto_msgs_list[topic_type.name][1],
                     serialization_format="cdr",
@@ -106,53 +141,12 @@ class AutoBagConverter:
             topic_name, msg, stamp = reader.read_next()
             data = deserialize_message(msg, get_message(topic_type_list[topic_name]))
 
-            if topic_name == "/vehicle/status/control_mode":
-                control_mode = ControlModeReport()
-                control_mode.mode = data.data
-                writer.write(
-                    autoware_auto_msgs_list[topic_name][0],
-                    serialize_message(control_mode),
-                    stamp,
-                )
-            elif topic_name == "/vehicle/status/shift":
-                gear_report = GearReport()
-                gear_report.report = data.shift.data
-                writer.write(
-                    autoware_auto_msgs_list[topic_name][0],
-                    serialize_message(gear_report),
-                    stamp,
-                )
-            elif topic_name == "/vehicle/status/steering":
-                steering_report = SteeringReport()
-                steering_report.steering_tire_angle = data.data
-                writer.write(
-                    autoware_auto_msgs_list[topic_name][0],
-                    serialize_message(steering_report),
-                    stamp,
-                )
-            elif topic_name == "/vehicle/status/turn_signal":
-                turn_indicators_report = TurnIndicatorsReport()
-                turn_indicators_report.report = data.data
-                writer.write(
-                    autoware_auto_msgs_list[topic_name][0],
-                    serialize_message(turn_indicators_report),
-                    stamp,
-                )
-            elif topic_name == "/vehicle/status/twist":
-                velocity_report = VelocityReport()
-                velocity_report.header.frame_id = "base_link"
-                velocity_report.longitudinal_velocity = data.twist.linear.x
-                velocity_report.lateral_velocity = data.twist.linear.y
-                velocity_report.heading_rate = data.twist.angular.z
-                writer.write(
-                    autoware_auto_msgs_list[topic_name][0],
-                    serialize_message(velocity_report),
-                    stamp,
-                )
-            else:
-                writer.write(topic_name, msg, stamp)
+            topic_name, data = self.__convert_iv_topic(
+                topic_name, data, autoware_auto_msgs_list
+            )
+            writer.write(topic_name, msg, stamp)
         del writer
-        Reindexer().reindex(storage_options)
+        rosbag2_py.Reindexer().reindex(storage_options)
 
 
 def main():

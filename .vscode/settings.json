@@ -23,7 +23,6 @@
     "/opt/ros/galactic/lib/python3.8/site-packages",
     "${env:HOME}/ros_ws/auto_converter/install/autoware_auto_vehicle_msgs/lib/python3.8/site-packages",
     "${env:HOME}/ros_ws/auto_converter/install/autoware_vehicle_msgs/lib/python3.8/site-packages"
-
   ],
   "python.analysis.extraPaths": [
     "/opt/ros/galactic/lib/python3.8/site-packages",
