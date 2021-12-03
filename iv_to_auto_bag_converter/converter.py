@@ -34,11 +34,24 @@ class AutoBagConverter:
     ):
         self.__input_bag_dir = input_bag_dir
         self.__output_bag_dir = output_bag_dir
-        self.__qos_override_file_name = qos_override_file_name
-        self.__topic_list_file = os.path.join(
+        convert_topic_list_file = os.path.join(
             get_package_share_directory("iv_to_auto_bag_converter"),
             "topic_list.yaml",
         )
+        with open(convert_topic_list_file) as topic_yaml_file:
+            self.__convert_dict = yaml.load(topic_yaml_file, Loader=yaml.SafeLoader)
+        self.__input_qos_path = os.path.join(
+            self.__input_bag_dir, qos_override_file_name
+        )
+        self.__output_qos_path = os.path.join(
+            self.__output_bag_dir, qos_override_file_name
+        )
+        self.__qos_override_obj = None
+        if os.path.exists(self.__input_qos_path):
+            with open(self.__input_qos_path) as qos_yaml_file:
+                self.__qos_override_obj = yaml.load(
+                    qos_yaml_file, Loader=yaml.SafeLoader
+                )
 
     def __create_reader(self):
         storage_options = rosbag2_py.StorageOptions(
@@ -62,30 +75,22 @@ class AutoBagConverter:
         writer.open(storage_options, converter_options)
         return writer, storage_options, converter_options
 
-    def __convert_qos_file(self, autoware_auto_msgs_list):
-        # load qos setting yaml and convert.
-        with open(
-            os.path.join(self.__input_bag_dir, self.__qos_override_file_name)
-        ) as qos_yaml:
-            qos_setting = yaml.load(qos_yaml, Loader=yaml.SafeLoader)
-        for topic_name in autoware_auto_msgs_list:
-            if topic_name in qos_setting:
-                qos_setting[autoware_auto_msgs_list[topic_name][0]] = qos_setting.pop(
-                    topic_name
-                )
-        with open(
-            os.path.join(self.__output_bag_dir, self.__qos_override_file_name), "w"
-        ) as override_qos_yaml:
-            yaml.dump(qos_setting, override_qos_yaml)
+    def __convert_qos_file(self):
+        if self.__qos_override_obj is not None:
+            for topic_name in self.__convert_dict:
+                if topic_name in self.__qos_override_obj:
+                    self.__qos_override_obj[
+                        self.__convert_dict[topic_name][0]
+                    ] = self.__qos_override_obj.pop(topic_name)
+            with open(os.path.join(self.__output_qos_path), "w") as out_qos_yaml:
+                yaml.dump(self.__qos_override_obj, out_qos_yaml)
 
-    def __convert_iv_topic(
-        self, iv_topic_name: Text, iv_type: Any, autoware_auto_msgs_list
-    ) -> Tuple[Text, Any]:
+    def __convert_iv_topic(self, iv_topic_name: Text, iv_type: Any) -> Tuple[Text, Any]:
         auto_topic_name = iv_topic_name
         auto_type = iv_type
 
-        if iv_topic_name in autoware_auto_msgs_list:
-            auto_topic_name = autoware_auto_msgs_list[iv_topic_name][0]
+        if iv_topic_name in self.__convert_dict:
+            auto_topic_name = self.__convert_dict[iv_topic_name][0]
             if iv_topic_name == "/vehicle/status/control_mode":
                 # convert logic
                 auto_data = auto_vehicle_msgs.ControlModeReport()
@@ -118,33 +123,25 @@ class AutoBagConverter:
 
         # first, write topic before write rosbag
         topic_type_list = {}
-        with open(self.__topic_list_file) as yaml_file:
-            autoware_auto_msgs_list = yaml.load(yaml_file, Loader=yaml.SafeLoader)
         for topic_type in reader.get_all_topics_and_types():
             topic_type_list[topic_type.name] = topic_type.type
-            if topic_type.name in list(autoware_auto_msgs_list.keys()):
+            if topic_type.name in list(self.__convert_dict.keys()):
                 topic_type = rosbag2_py.TopicMetadata(
-                    name=autoware_auto_msgs_list[topic_type.name][0],
-                    type=autoware_auto_msgs_list[topic_type.name][1],
+                    name=self.__convert_dict[topic_type.name][0],
+                    type=self.__convert_dict[topic_type.name][1],
                     serialization_format="cdr",
                 )
-                writer.create_topic(topic_type)
             writer.create_topic(topic_type)
 
-        if os.path.exists(
-            os.path.join(self.__input_bag_dir, self.__qos_override_file_name)
-        ):
-            self.__convert_qos_file(autoware_auto_msgs_list)
+        self.__convert_qos_file()
 
-        # convert topic and write to rosbag.
+        # convert topic and write to output bag
         while reader.has_next():
             topic_name, msg, stamp = reader.read_next()
             data = deserialize_message(msg, get_message(topic_type_list[topic_name]))
-
-            topic_name, data = self.__convert_iv_topic(
-                topic_name, data, autoware_auto_msgs_list
-            )
+            topic_name, data = self.__convert_iv_topic(topic_name, data)
             writer.write(topic_name, msg, stamp)
+        # reindex to update metadata.yaml
         del writer
         rosbag2_py.Reindexer().reindex(storage_options)
 
