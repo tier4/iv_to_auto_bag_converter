@@ -24,6 +24,13 @@ from ament_index_python.packages import get_package_share_directory
 from rclpy.serialization import deserialize_message, serialize_message
 from rosidl_runtime_py.utilities import get_message
 
+# topics not to convert
+SKIP_TOPIC_LIST = [
+    "/vehicle/status/battery_charge",
+    "/vehicle/status/velocity_kmph",
+    "/vehicle/status/steering_wheel_deg",
+]
+
 
 class AutoBagConverter:
     def __init__(
@@ -92,22 +99,46 @@ class AutoBagConverter:
         if iv_topic_name in self.__convert_dict:
             auto_topic_name = self.__convert_dict[iv_topic_name][0]
             if iv_topic_name == "/vehicle/status/control_mode":
-                # convert logic
+                # type(iv_type) is iv_vehicle_msgs.ControlMode:
                 auto_data = auto_vehicle_msgs.ControlModeReport()
-                auto_data.mode = iv_type.data
+                auto_data.stamp = iv_type.header.stamp
+                if iv_type.data is iv_vehicle_msgs.ControlMode.AUTO:
+                    auto_data.mode = auto_vehicle_msgs.ControlModeReport.AUTONOMOUS
+                else:
+                    auto_data.mode = auto_vehicle_msgs.ControlModeReport.MANUAL
             elif iv_topic_name == "/vehicle/status/shift":
-                # convert logic
+                # type(iv_type) is iv_vehicle_msgs.ShiftStamped:
                 auto_data = auto_vehicle_msgs.GearReport()
-                auto_data = iv_type.shift.data
+                auto_data.stamp = iv_type.header.stamp
+                if iv_type.data is iv_vehicle_msgs.Shift.PARKING:
+                    auto_data.report = auto_vehicle_msgs.GearReport.PARK
+                elif iv_type.data is iv_vehicle_msgs.Shift.REVERSE:
+                    auto_data.report = auto_vehicle_msgs.GearReport.REVERSE
+                elif iv_type.data is iv_vehicle_msgs.Shift.DRIVE:
+                    auto_data.report = auto_vehicle_msgs.GearReport.DRIVE
+                elif iv_type.data is iv_vehicle_msgs.Shift.LOW:
+                    auto_data.report = auto_vehicle_msgs.GearReport.LOW
             elif iv_topic_name == "/vehicle/status/steering":
-                # convert logic
+                # type(iv_type) is iv_vehicle_msgs.Steering:
                 auto_data = auto_vehicle_msgs.SteeringReport()
+                auto_data.stamp = iv_type.header.stamp
                 auto_data.steering_tire_angle = iv_type.data
             elif iv_topic_name == "/vehicle/status/turn_signal":
                 # convert logic
                 auto_data = auto_vehicle_msgs.TurnIndicatorsReport()
-                auto_data.report = iv_type.data
+                auto_data.stamp = iv_type.header.stamp
+                if iv_type.data is iv_vehicle_msgs.TurnSignal.LEFT:
+                    auto_data.report = (
+                        auto_vehicle_msgs.TurnIndicatorsReport.ENABLE_LEFT
+                    )
+                elif iv_type.data is iv_vehicle_msgs.TurnSignal.RIGHT:
+                    auto_data.report = (
+                        auto_vehicle_msgs.TurnIndicatorsReport.ENABLE_RIGHT
+                    )
+                elif iv_type.data is iv_vehicle_msgs.TurnSignal.NONE:
+                    auto_data.report = auto_vehicle_msgs.TurnIndicatorsReport.DISABLE
             elif iv_topic_name == "/vehicle/status/twist":
+                # type(iv_type) is TwistStamped
                 auto_data = auto_vehicle_msgs.VelocityReport()
                 auto_data.header.frame_id = "base_link"
                 auto_data.longitudinal_velocity = iv_type.twist.linear.x
@@ -140,7 +171,8 @@ class AutoBagConverter:
             topic_name, msg, stamp = reader.read_next()
             data = deserialize_message(msg, get_message(topic_type_list[topic_name]))
             topic_name, data = self.__convert_iv_topic(topic_name, data)
-            writer.write(topic_name, msg, stamp)
+            if topic_name not in SKIP_TOPIC_LIST:
+                writer.write(topic_name, msg, stamp)
         # reindex to update metadata.yaml
         del writer
         rosbag2_py.Reindexer().reindex(storage_options)
