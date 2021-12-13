@@ -110,13 +110,13 @@ class AutoBagConverter:
                 # type(iv_type) is iv_vehicle_msgs.ShiftStamped:
                 auto_data = auto_vehicle_msgs.GearReport()
                 auto_data.stamp = iv_type.header.stamp
-                if iv_type.data is iv_vehicle_msgs.Shift.PARKING:
+                if iv_type.shift.data is iv_vehicle_msgs.Shift.PARKING:
                     auto_data.report = auto_vehicle_msgs.GearReport.PARK
-                elif iv_type.data is iv_vehicle_msgs.Shift.REVERSE:
+                elif iv_type.shift.data is iv_vehicle_msgs.Shift.REVERSE:
                     auto_data.report = auto_vehicle_msgs.GearReport.REVERSE
-                elif iv_type.data is iv_vehicle_msgs.Shift.DRIVE:
+                elif iv_type.shift.data is iv_vehicle_msgs.Shift.DRIVE:
                     auto_data.report = auto_vehicle_msgs.GearReport.DRIVE
-                elif iv_type.data is iv_vehicle_msgs.Shift.LOW:
+                elif iv_type.shift.data is iv_vehicle_msgs.Shift.LOW:
                     auto_data.report = auto_vehicle_msgs.GearReport.LOW
             elif iv_topic_name == "/vehicle/status/steering":
                 # type(iv_type) is iv_vehicle_msgs.Steering:
