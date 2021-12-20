@@ -2,8 +2,8 @@
 Changelog for package iv_to_auto_bag_converter
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.1.1 (2021-12-20)
+------------------
 * Merge pull request `#2 <https://github.com/tier4/iv_to_auto_bag_converter/issues/2>`_ from tier4/feat/`#1 <https://github.com/tier4/iv_to_auto_bag_converter/issues/1>`_-split-out-convert-function
   Feat/`#1 <https://github.com/tier4/iv_to_auto_bag_converter/issues/1>`_ split out convert function
   closes: `#1 <https://github.com/tier4/iv_to_auto_bag_converter/issues/1>`_
