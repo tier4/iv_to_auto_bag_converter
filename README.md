@@ -38,8 +38,17 @@ colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 source ~/auto_converter_ws/install/setup.bash
 
 # convert one bag
-ros2 run iv_to_auto_bag_converter $(input_bag_path) $(output_bag_path) [-q $(qos_override_file_name)]
+ros2 run iv_to_auto_bag_converter convert $(input_bag_path) $(output_bag_path) [-q $(qos_override_file_name)]
 
 # convert multiple bags in the directory
-ros2 run iv_to_auto_bag_converter $(input_bag_path) [-q $(qos_override_file_name) --delete] 
+ros2 run iv_to_auto_bag_converter convert_multi $(input_bag_path) [-q $(qos_override_file_name)]
+
+# convert multiple bags in the directory and delete input(iv) bags after conversion
+ros2 run iv_to_auto_bag_converter convert_multi $(input_bag_path) --delete [-q $(qos_override_file_name)] 
 ```
+
+
+## How to add topic(s) to be converted (for Developer)
+
+1. add .iv topic name, .auto topic name, and .auto data type in config/topic_list.yaml
+2. add conversion logic to __convert_iv_topic function in conveter.py

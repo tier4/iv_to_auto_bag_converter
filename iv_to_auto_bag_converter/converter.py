@@ -14,14 +14,22 @@
 
 import argparse
 import os
-from typing import Text
+from typing import Any, Text, Tuple
 
+import autoware_auto_vehicle_msgs.msg as auto_vehicle_msgs
+import autoware_vehicle_msgs.msg as iv_vehicle_msgs
+import rosbag2_py
 import yaml
 from ament_index_python.packages import get_package_share_directory
-from autoware_auto_vehicle_msgs.msg import *
 from rclpy.serialization import deserialize_message, serialize_message
-from rosbag2_py import *
 from rosidl_runtime_py.utilities import get_message
+
+# topics not to convert
+SKIP_TOPIC_LIST = [
+    "/vehicle/status/battery_charge",
+    "/vehicle/status/velocity_kmph",
+    "/vehicle/status/steering_wheel_deg",
+]
 
 
 class AutoBagConverter:
@@ -33,47 +41,110 @@ class AutoBagConverter:
     ):
         self.__input_bag_dir = input_bag_dir
         self.__output_bag_dir = output_bag_dir
-        self.__qos_override_file_name = qos_override_file_name
-        self.__topic_list_file = os.path.join(
+        convert_topic_list_file = os.path.join(
             get_package_share_directory("iv_to_auto_bag_converter"),
             "topic_list.yaml",
         )
+        with open(convert_topic_list_file) as topic_yaml_file:
+            self.__convert_dict = yaml.load(topic_yaml_file, Loader=yaml.SafeLoader)
+        self.__input_qos_path = os.path.join(
+            self.__input_bag_dir, qos_override_file_name
+        )
+        self.__output_qos_path = os.path.join(
+            self.__output_bag_dir, qos_override_file_name
+        )
+        self.__qos_override_obj = None
+        if os.path.exists(self.__input_qos_path):
+            with open(self.__input_qos_path) as qos_yaml_file:
+                self.__qos_override_obj = yaml.load(
+                    qos_yaml_file, Loader=yaml.SafeLoader
+                )
 
     def __create_reader(self):
-        storage_options = StorageOptions(uri=self.__input_bag_dir, storage_id="sqlite3")
-        converter_options = ConverterOptions(
+        storage_options = rosbag2_py.StorageOptions(
+            uri=self.__input_bag_dir, storage_id="sqlite3"
+        )
+        converter_options = rosbag2_py.ConverterOptions(
             input_serialization_format="cdr", output_serialization_format="cdr"
         )
-        reader = SequentialReader()
+        reader = rosbag2_py.SequentialReader()
         reader.open(storage_options, converter_options)
         return reader, storage_options, converter_options
 
     def __create_writer(self):
-        storage_options = StorageOptions(
+        storage_options = rosbag2_py.StorageOptions(
             uri=self.__output_bag_dir, storage_id="sqlite3"
         )
-        converter_options = ConverterOptions(
+        converter_options = rosbag2_py.ConverterOptions(
             input_serialization_format="cdr", output_serialization_format="cdr"
         )
-        writer = SequentialWriter()
+        writer = rosbag2_py.SequentialWriter()
         writer.open(storage_options, converter_options)
         return writer, storage_options, converter_options
 
-    def __convert_qos_file(self, autoware_auto_msgs_list):
-        # load qos setting yaml and convert.
-        with open(
-            os.path.join(self.__input_bag_dir, self.__qos_override_file_name)
-        ) as qos_yaml:
-            qos_setting = yaml.load(qos_yaml, Loader=yaml.SafeLoader)
-        for topic_name in autoware_auto_msgs_list:
-            if topic_name in qos_setting:
-                qos_setting[autoware_auto_msgs_list[topic_name][0]] = qos_setting.pop(
-                    topic_name
-                )
-        with open(
-            os.path.join(self.__output_bag_dir, self.__qos_override_file_name), "w"
-        ) as override_qos_yaml:
-            yaml.dump(qos_setting, override_qos_yaml)
+    def __convert_qos_file(self):
+        if self.__qos_override_obj is not None:
+            for topic_name in self.__convert_dict:
+                if topic_name in self.__qos_override_obj:
+                    self.__qos_override_obj[
+                        self.__convert_dict[topic_name][0]
+                    ] = self.__qos_override_obj.pop(topic_name)
+            with open(os.path.join(self.__output_qos_path), "w") as out_qos_yaml:
+                yaml.dump(self.__qos_override_obj, out_qos_yaml)
+
+    def __convert_iv_topic(self, iv_topic_name: Text, iv_type: Any) -> Tuple[Text, Any]:
+        auto_topic_name = iv_topic_name
+        auto_type = iv_type
+
+        if iv_topic_name in self.__convert_dict:
+            auto_topic_name = self.__convert_dict[iv_topic_name][0]
+            if iv_topic_name == "/vehicle/status/control_mode":
+                # type(iv_type) is iv_vehicle_msgs.ControlMode:
+                auto_data = auto_vehicle_msgs.ControlModeReport()
+                auto_data.stamp = iv_type.header.stamp
+                if iv_type.data is iv_vehicle_msgs.ControlMode.AUTO:
+                    auto_data.mode = auto_vehicle_msgs.ControlModeReport.AUTONOMOUS
+                else:
+                    auto_data.mode = auto_vehicle_msgs.ControlModeReport.MANUAL
+            elif iv_topic_name == "/vehicle/status/shift":
+                # type(iv_type) is iv_vehicle_msgs.ShiftStamped:
+                auto_data = auto_vehicle_msgs.GearReport()
+                auto_data.stamp = iv_type.header.stamp
+                if iv_type.shift.data is iv_vehicle_msgs.Shift.PARKING:
+                    auto_data.report = auto_vehicle_msgs.GearReport.PARK
+                elif iv_type.shift.data is iv_vehicle_msgs.Shift.REVERSE:
+                    auto_data.report = auto_vehicle_msgs.GearReport.REVERSE
+                elif iv_type.shift.data is iv_vehicle_msgs.Shift.DRIVE:
+                    auto_data.report = auto_vehicle_msgs.GearReport.DRIVE
+                elif iv_type.shift.data is iv_vehicle_msgs.Shift.LOW:
+                    auto_data.report = auto_vehicle_msgs.GearReport.LOW
+            elif iv_topic_name == "/vehicle/status/steering":
+                # type(iv_type) is iv_vehicle_msgs.Steering:
+                auto_data = auto_vehicle_msgs.SteeringReport()
+                auto_data.stamp = iv_type.header.stamp
+                auto_data.steering_tire_angle = iv_type.data
+            elif iv_topic_name == "/vehicle/status/turn_signal":
+                # convert logic
+                auto_data = auto_vehicle_msgs.TurnIndicatorsReport()
+                auto_data.stamp = iv_type.header.stamp
+                if iv_type.data is iv_vehicle_msgs.TurnSignal.LEFT:
+                    auto_data.report = (
+                        auto_vehicle_msgs.TurnIndicatorsReport.ENABLE_LEFT
+                    )
+                elif iv_type.data is iv_vehicle_msgs.TurnSignal.RIGHT:
+                    auto_data.report = (
+                        auto_vehicle_msgs.TurnIndicatorsReport.ENABLE_RIGHT
+                    )
+                elif iv_type.data is iv_vehicle_msgs.TurnSignal.NONE:
+                    auto_data.report = auto_vehicle_msgs.TurnIndicatorsReport.DISABLE
+            elif iv_topic_name == "/vehicle/status/twist":
+                # type(iv_type) is TwistStamped
+                auto_data = auto_vehicle_msgs.VelocityReport()
+                auto_data.header.frame_id = "base_link"
+                auto_data.longitudinal_velocity = iv_type.twist.linear.x
+                auto_data.lateral_velocity = iv_type.twist.linear.y
+                auto_data.heading_rate = iv_type.twist.angular.z
+        return auto_topic_name, auto_type
 
     def convert(self):
         # open reader
@@ -83,76 +154,28 @@ class AutoBagConverter:
 
         # first, write topic before write rosbag
         topic_type_list = {}
-        with open(self.__topic_list_file) as yaml_file:
-            autoware_auto_msgs_list = yaml.load(yaml_file, Loader=yaml.SafeLoader)
         for topic_type in reader.get_all_topics_and_types():
             topic_type_list[topic_type.name] = topic_type.type
-            if topic_type.name in list(autoware_auto_msgs_list.keys()):
-                topic_type = TopicMetadata(
-                    name=autoware_auto_msgs_list[topic_type.name][0],
-                    type=autoware_auto_msgs_list[topic_type.name][1],
+            if topic_type.name in list(self.__convert_dict.keys()):
+                topic_type = rosbag2_py.TopicMetadata(
+                    name=self.__convert_dict[topic_type.name][0],
+                    type=self.__convert_dict[topic_type.name][1],
                     serialization_format="cdr",
                 )
-                writer.create_topic(topic_type)
             writer.create_topic(topic_type)
 
-        if os.path.exists(
-            os.path.join(self.__input_bag_dir, self.__qos_override_file_name)
-        ):
-            self.__convert_qos_file(autoware_auto_msgs_list)
+        self.__convert_qos_file()
 
-        # convert topic and write to rosbag.
+        # convert topic and write to output bag
         while reader.has_next():
             topic_name, msg, stamp = reader.read_next()
             data = deserialize_message(msg, get_message(topic_type_list[topic_name]))
-
-            if topic_name == "/vehicle/status/control_mode":
-                control_mode = ControlModeReport()
-                control_mode.mode = data.data
-                writer.write(
-                    autoware_auto_msgs_list[topic_name][0],
-                    serialize_message(control_mode),
-                    stamp,
-                )
-            elif topic_name == "/vehicle/status/shift":
-                gear_report = GearReport()
-                gear_report.report = data.shift.data
-                writer.write(
-                    autoware_auto_msgs_list[topic_name][0],
-                    serialize_message(gear_report),
-                    stamp,
-                )
-            elif topic_name == "/vehicle/status/steering":
-                steering_report = SteeringReport()
-                steering_report.steering_tire_angle = data.data
-                writer.write(
-                    autoware_auto_msgs_list[topic_name][0],
-                    serialize_message(steering_report),
-                    stamp,
-                )
-            elif topic_name == "/vehicle/status/turn_signal":
-                turn_indicators_report = TurnIndicatorsReport()
-                turn_indicators_report.report = data.data
-                writer.write(
-                    autoware_auto_msgs_list[topic_name][0],
-                    serialize_message(turn_indicators_report),
-                    stamp,
-                )
-            elif topic_name == "/vehicle/status/twist":
-                velocity_report = VelocityReport()
-                velocity_report.header.frame_id = "base_link"
-                velocity_report.longitudinal_velocity = data.twist.linear.x
-                velocity_report.lateral_velocity = data.twist.linear.y
-                velocity_report.heading_rate = data.twist.angular.z
-                writer.write(
-                    autoware_auto_msgs_list[topic_name][0],
-                    serialize_message(velocity_report),
-                    stamp,
-                )
-            else:
+            topic_name, data = self.__convert_iv_topic(topic_name, data)
+            if topic_name not in SKIP_TOPIC_LIST:
                 writer.write(topic_name, msg, stamp)
+        # reindex to update metadata.yaml
         del writer
-        Reindexer().reindex(storage_options)
+        rosbag2_py.Reindexer().reindex(storage_options)
 
 
 def main():
