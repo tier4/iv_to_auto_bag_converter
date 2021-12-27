@@ -107,7 +107,7 @@ class AutoBagConverter:
                 # type(iv_data) is iv_vehicle_msgs.ControlMode:
                 auto_data = auto_vehicle_msgs.ControlModeReport()
                 auto_data.stamp = iv_data.header.stamp
-                if iv_data.data is iv_vehicle_msgs.ControlMode.AUTO:
+                if iv_data.data == iv_vehicle_msgs.ControlMode.AUTO:
                     auto_data.mode = auto_vehicle_msgs.ControlModeReport.AUTONOMOUS
                 else:
                     auto_data.mode = auto_vehicle_msgs.ControlModeReport.MANUAL
@@ -115,13 +115,13 @@ class AutoBagConverter:
                 # type(iv_data) is iv_vehicle_msgs.ShiftStamped:
                 auto_data = auto_vehicle_msgs.GearReport()
                 auto_data.stamp = iv_data.header.stamp
-                if iv_data.shift.data is iv_vehicle_msgs.Shift.PARKING:
+                if iv_data.shift.data == iv_vehicle_msgs.Shift.PARKING:
                     auto_data.report = auto_vehicle_msgs.GearReport.PARK
-                elif iv_data.shift.data is iv_vehicle_msgs.Shift.REVERSE:
+                elif iv_data.shift.data == iv_vehicle_msgs.Shift.REVERSE:
                     auto_data.report = auto_vehicle_msgs.GearReport.REVERSE
-                elif iv_data.shift.data is iv_vehicle_msgs.Shift.DRIVE:
+                elif iv_data.shift.data == iv_vehicle_msgs.Shift.DRIVE:
                     auto_data.report = auto_vehicle_msgs.GearReport.DRIVE
-                elif iv_data.shift.data is iv_vehicle_msgs.Shift.LOW:
+                elif iv_data.shift.data == iv_vehicle_msgs.Shift.LOW:
                     auto_data.report = auto_vehicle_msgs.GearReport.LOW
             elif iv_topic_name == "/vehicle/status/steering":
                 # type(iv_data) is iv_vehicle_msgs.Steering:
@@ -132,15 +132,15 @@ class AutoBagConverter:
                 # convert logic
                 auto_data = auto_vehicle_msgs.TurnIndicatorsReport()
                 auto_data.stamp = iv_data.header.stamp
-                if iv_data.data is iv_vehicle_msgs.TurnSignal.LEFT:
+                if iv_data.data == iv_vehicle_msgs.TurnSignal.LEFT:
                     auto_data.report = (
                         auto_vehicle_msgs.TurnIndicatorsReport.ENABLE_LEFT
                     )
-                elif iv_data.data is iv_vehicle_msgs.TurnSignal.RIGHT:
+                elif iv_data.data == iv_vehicle_msgs.TurnSignal.RIGHT:
                     auto_data.report = (
                         auto_vehicle_msgs.TurnIndicatorsReport.ENABLE_RIGHT
                     )
-                elif iv_data.data is iv_vehicle_msgs.TurnSignal.NONE:
+                elif iv_data.data == iv_vehicle_msgs.TurnSignal.NONE:
                     auto_data.report = auto_vehicle_msgs.TurnIndicatorsReport.DISABLE
             elif iv_topic_name == "/vehicle/status/twist":
                 # type(iv_data) is TwistStamped
