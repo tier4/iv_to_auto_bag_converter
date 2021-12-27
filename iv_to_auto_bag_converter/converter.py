@@ -14,7 +14,7 @@
 
 import argparse
 import os
-from typing import Any, Text, Tuple
+from typing import List, Text, Tuple
 
 import autoware_auto_vehicle_msgs.msg as auto_vehicle_msgs
 import autoware_vehicle_msgs.msg as iv_vehicle_msgs
@@ -92,59 +92,65 @@ class AutoBagConverter:
             with open(os.path.join(self.__output_qos_path), "w") as out_qos_yaml:
                 yaml.dump(self.__qos_override_obj, out_qos_yaml)
 
-    def __convert_iv_topic(self, iv_topic_name: Text, iv_type: Any) -> Tuple[Text, Any]:
+    def __convert_iv_topic(
+        self, iv_topic_name: Text, iv_msg: bytes, topic_type_list: List
+    ) -> Tuple[Text, bytes]:
         auto_topic_name = iv_topic_name
-        auto_type = iv_type
+        auto_msg = iv_msg
 
         if iv_topic_name in self.__convert_dict:
+            iv_data = deserialize_message(
+                iv_msg, get_message(topic_type_list[iv_topic_name])
+            )
             auto_topic_name = self.__convert_dict[iv_topic_name][0]
             if iv_topic_name == "/vehicle/status/control_mode":
-                # type(iv_type) is iv_vehicle_msgs.ControlMode:
+                # type(iv_data) is iv_vehicle_msgs.ControlMode:
                 auto_data = auto_vehicle_msgs.ControlModeReport()
-                auto_data.stamp = iv_type.header.stamp
-                if iv_type.data is iv_vehicle_msgs.ControlMode.AUTO:
+                auto_data.stamp = iv_data.header.stamp
+                if iv_data.data == iv_vehicle_msgs.ControlMode.AUTO:
                     auto_data.mode = auto_vehicle_msgs.ControlModeReport.AUTONOMOUS
                 else:
                     auto_data.mode = auto_vehicle_msgs.ControlModeReport.MANUAL
             elif iv_topic_name == "/vehicle/status/shift":
-                # type(iv_type) is iv_vehicle_msgs.ShiftStamped:
+                # type(iv_data) is iv_vehicle_msgs.ShiftStamped:
                 auto_data = auto_vehicle_msgs.GearReport()
-                auto_data.stamp = iv_type.header.stamp
-                if iv_type.shift.data is iv_vehicle_msgs.Shift.PARKING:
+                auto_data.stamp = iv_data.header.stamp
+                if iv_data.shift.data == iv_vehicle_msgs.Shift.PARKING:
                     auto_data.report = auto_vehicle_msgs.GearReport.PARK
-                elif iv_type.shift.data is iv_vehicle_msgs.Shift.REVERSE:
+                elif iv_data.shift.data == iv_vehicle_msgs.Shift.REVERSE:
                     auto_data.report = auto_vehicle_msgs.GearReport.REVERSE
-                elif iv_type.shift.data is iv_vehicle_msgs.Shift.DRIVE:
+                elif iv_data.shift.data == iv_vehicle_msgs.Shift.DRIVE:
                     auto_data.report = auto_vehicle_msgs.GearReport.DRIVE
-                elif iv_type.shift.data is iv_vehicle_msgs.Shift.LOW:
+                elif iv_data.shift.data == iv_vehicle_msgs.Shift.LOW:
                     auto_data.report = auto_vehicle_msgs.GearReport.LOW
             elif iv_topic_name == "/vehicle/status/steering":
-                # type(iv_type) is iv_vehicle_msgs.Steering:
+                # type(iv_data) is iv_vehicle_msgs.Steering:
                 auto_data = auto_vehicle_msgs.SteeringReport()
-                auto_data.stamp = iv_type.header.stamp
-                auto_data.steering_tire_angle = iv_type.data
+                auto_data.stamp = iv_data.header.stamp
+                auto_data.steering_tire_angle = iv_data.data
             elif iv_topic_name == "/vehicle/status/turn_signal":
                 # convert logic
                 auto_data = auto_vehicle_msgs.TurnIndicatorsReport()
-                auto_data.stamp = iv_type.header.stamp
-                if iv_type.data is iv_vehicle_msgs.TurnSignal.LEFT:
+                auto_data.stamp = iv_data.header.stamp
+                if iv_data.data == iv_vehicle_msgs.TurnSignal.LEFT:
                     auto_data.report = (
                         auto_vehicle_msgs.TurnIndicatorsReport.ENABLE_LEFT
                     )
-                elif iv_type.data is iv_vehicle_msgs.TurnSignal.RIGHT:
+                elif iv_data.data == iv_vehicle_msgs.TurnSignal.RIGHT:
                     auto_data.report = (
                         auto_vehicle_msgs.TurnIndicatorsReport.ENABLE_RIGHT
                     )
-                elif iv_type.data is iv_vehicle_msgs.TurnSignal.NONE:
+                elif iv_data.data == iv_vehicle_msgs.TurnSignal.NONE:
                     auto_data.report = auto_vehicle_msgs.TurnIndicatorsReport.DISABLE
             elif iv_topic_name == "/vehicle/status/twist":
-                # type(iv_type) is TwistStamped
+                # type(iv_data) is TwistStamped
                 auto_data = auto_vehicle_msgs.VelocityReport()
                 auto_data.header.frame_id = "base_link"
-                auto_data.longitudinal_velocity = iv_type.twist.linear.x
-                auto_data.lateral_velocity = iv_type.twist.linear.y
-                auto_data.heading_rate = iv_type.twist.angular.z
-        return auto_topic_name, auto_type
+                auto_data.longitudinal_velocity = iv_data.twist.linear.x
+                auto_data.lateral_velocity = iv_data.twist.linear.y
+                auto_data.heading_rate = iv_data.twist.angular.z
+            auto_msg = serialize_message(auto_data)
+        return auto_topic_name, auto_msg
 
     def convert(self):
         # open reader
@@ -169,8 +175,7 @@ class AutoBagConverter:
         # convert topic and write to output bag
         while reader.has_next():
             topic_name, msg, stamp = reader.read_next()
-            data = deserialize_message(msg, get_message(topic_type_list[topic_name]))
-            topic_name, data = self.__convert_iv_topic(topic_name, data)
+            topic_name, msg = self.__convert_iv_topic(topic_name, msg, topic_type_list)
             if topic_name not in SKIP_TOPIC_LIST:
                 writer.write(topic_name, msg, stamp)
         # reindex to update metadata.yaml
