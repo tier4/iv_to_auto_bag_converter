@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>iv_to_auto_bag_converter</name>
-  <version>0.1.1</version>
+  <version>0.2.0</version>
   <description>convert .iv bag to .auto</description>
   <maintainer email="ryu.yamamoto@tier4.jp">Ryu Yamamoto</maintainer>
   <maintainer email="hayato-m126@users.noreply.github.com">Hayato Mizushima</maintainer>
