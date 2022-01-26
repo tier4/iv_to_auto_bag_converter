@@ -146,6 +146,7 @@ class AutoBagConverter:
                 # type(iv_data) is TwistStamped
                 auto_data = auto_vehicle_msgs.VelocityReport()
                 auto_data.header.frame_id = "base_link"
+                auto_data.header.stamp = iv_data.header.stamp
                 auto_data.longitudinal_velocity = iv_data.twist.linear.x
                 auto_data.lateral_velocity = iv_data.twist.linear.y
                 auto_data.heading_rate = iv_data.twist.angular.z
