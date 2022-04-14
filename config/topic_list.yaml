@@ -13,3 +13,6 @@
 /vehicle/status/twist:
 - /vehicle/status/velocity_status
 - autoware_auto_vehicle_msgs/msg/VelocityReport
+/planning/mission_planning/route:
+- /planning/mission_planning/route
+- autoware_auto_planning_msgs/msg/HADMapRoute
