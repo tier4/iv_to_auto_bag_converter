@@ -16,6 +16,8 @@ import argparse
 import os
 from typing import List, Text, Tuple
 
+import autoware_auto_mapping_msgs.msg as auto_mapping_msgs
+import autoware_auto_planning_msgs.msg as auto_planning_msgs
 import autoware_auto_vehicle_msgs.msg as auto_vehicle_msgs
 import autoware_vehicle_msgs.msg as iv_vehicle_msgs
 import rosbag2_py
@@ -149,6 +151,19 @@ class AutoBagConverter:
                 auto_data.longitudinal_velocity = iv_data.twist.linear.x
                 auto_data.lateral_velocity = iv_data.twist.linear.y
                 auto_data.heading_rate = iv_data.twist.angular.z
+            elif iv_topic_name == "/planning/mission_planning/route":
+                # type(iv_data) is iv_planning_msgs.Route:
+                auto_data = auto_planning_msgs.HADMapRoute()
+                auto_data.header = iv_data.header
+                auto_data.goal_pose = iv_data.goal_pose.pose
+                for section in iv_data.route_sections:
+                    segment = auto_mapping_msgs.HADMapSegment()
+                    segment.preferred_primitive_id = section.preferred_primitive_id
+                    for lane_id in section.lane_ids:
+                        primitive = auto_mapping_msgs.MapPrimitive()
+                        primitive.id = lane_id
+                        segment.primitives.append(primitive)
+                    auto_data.segments.append(segment)
             auto_msg = serialize_message(auto_data)
         return auto_topic_name, auto_msg
 
