@@ -155,10 +155,10 @@ class AutoBagConverter:
                 # type(iv_data) is iv_planning_msgs.Route:
                 auto_data = auto_planning_msgs.HADMapRoute()
                 auto_data.header = iv_data.header
-                auto_data.goal_pose = iv_data.goal_pose.pose
+                auto_data.goal_pose = iv_data.goal_pose
                 for section in iv_data.route_sections:
                     segment = auto_mapping_msgs.HADMapSegment()
-                    segment.preferred_primitive_id = section.preferred_primitive_id
+                    segment.preferred_primitive_id = section.preferred_lane_id
                     for lane_id in section.lane_ids:
                         primitive = auto_mapping_msgs.MapPrimitive()
                         primitive.id = lane_id
