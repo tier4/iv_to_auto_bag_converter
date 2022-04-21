@@ -182,6 +182,7 @@ class AutoBagConverter:
                     name=self.__convert_dict[topic_type.name][0],
                     type=self.__convert_dict[topic_type.name][1],
                     serialization_format="cdr",
+                    offered_qos_profiles=topic_type.offered_qos_profiles,
                 )
             writer.create_topic(topic_type)
 
