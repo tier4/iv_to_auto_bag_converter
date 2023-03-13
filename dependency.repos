@@ -14,7 +14,7 @@ repositories:
   vendor/velodyne_vls:
     type: git
     url: https://github.com/tier4/velodyne_vls.git
-    version: use-autoware-auto-msgs
+    version: tier4/universe
   vendor/perception_pcl: # dependency of velodyne_vls
     type: git
     url: https://github.com/ros-perception/perception_pcl.git
@@ -22,8 +22,8 @@ repositories:
   vendor/ublox:
     type: git
     url: https://github.com/tier4/ublox.git
-    version: tier4/ros2
+    version: tier4/rolling
   vendor/hesai_pandar:
     type: git
     url: https://github.com/tier4/hesai_pandar.git
-    version: ros2
+    version: tier4/develop
